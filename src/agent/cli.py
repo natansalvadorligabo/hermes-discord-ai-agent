@@ -147,7 +147,7 @@ def sync_feedback(args: argparse.Namespace, home: AgentHome) -> object:
     readings = read_verdicts(
         store.posted_picks(),
         _radar_channel(),
-        _required_setting("DISCORD_READER_ID"),
+        _required_setting("RADAR_READER_ID"),
         date.today(),
         args.window_days,
     )
@@ -176,8 +176,8 @@ def job_command(args: argparse.Namespace, _: AgentHome) -> object:
 
 def _radar_channel() -> RestDiscordChannel:
     return RestDiscordChannel(
-        channel_id=_required_setting("DISCORD_RADAR_CHANNEL_ID"),
-        bot_token=_required_setting("DISCORD_BOT_TOKEN"),
+        channel_id=_required_setting("RADAR_CHANNEL_ID"),
+        bot_token=_required_setting("RADAR_BOT_TOKEN"),
         http=HttpxClient(),
     )
 

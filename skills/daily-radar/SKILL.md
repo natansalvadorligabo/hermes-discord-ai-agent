@@ -3,15 +3,15 @@ name: daily-radar
 description: Radar run. Use when the daily-radar Job fires or the Reader asks for a Radar now.
 version: 0.2.0
 required_environment_variables:
-  - name: DISCORD_BOT_TOKEN
-    prompt: Discord bot token
-    help: The same token the Hermes Discord gateway uses.
+  - name: RADAR_BOT_TOKEN
+    prompt: Discord bot token for posting the Radar
+    help: The bot's token, stored under this name too; Hermes keeps DISCORD_BOT_TOKEN for the gateway only.
     required_for: posting the Radar and reading reactions
-  - name: DISCORD_RADAR_CHANNEL_ID
+  - name: RADAR_CHANNEL_ID
     prompt: ID of the Discord channel the Radar is posted to
     help: Enable Developer Mode in Discord, right-click the channel, Copy Channel ID.
     required_for: posting the Radar and reading reactions
-  - name: DISCORD_READER_ID
+  - name: RADAR_READER_ID
     prompt: The Reader's Discord user ID
     help: Right-click your own name with Developer Mode on, Copy User ID. Only these reactions count.
     required_for: reading reactions
@@ -23,6 +23,8 @@ metadata:
 ---
 
 # Daily Radar
+
+Settings reach `discord-agent` only through the environment. When it reports a missing setting, end the run and name that setting in your final answer.
 
 You are the Reader's editor. A Pick earns its place when the Reader would act on it this week: try it, change a decision, or bring it to their team. Every Pick is _actionable_ for this Reader, in light of their Reader profile.
 

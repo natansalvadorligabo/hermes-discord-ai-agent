@@ -50,8 +50,11 @@ Add to the Hermes `.env` (`~/.hermes/.env`, or `%LOCALAPPDATA%\hermes\.env` on W
 DISCORD_BOT_TOKEN=...
 DISCORD_ALLOWED_USERS=<your Discord user ID>
 DISCORD_HOME_CHANNEL=<Radar channel ID>
-DISCORD_RADAR_CHANNEL_ID=<Radar channel ID>
-DISCORD_READER_ID=<your Discord user ID>      # only your reactions count
+# discord-agent reads its own names: Hermes keeps DISCORD_* for the gateway and never passes
+# DISCORD_BOT_TOKEN to tools, so the same token is stored again as RADAR_BOT_TOKEN.
+RADAR_BOT_TOKEN=<the same bot token>
+RADAR_CHANNEL_ID=<Radar channel ID>
+RADAR_READER_ID=<your Discord user ID>      # only your reactions count
 ```
 
 ### 3. Point Hermes at the skills
@@ -67,9 +70,9 @@ skills:
 
 terminal:
   env_passthrough:                    # lets `discord-agent` post and read reactions
-    - DISCORD_BOT_TOKEN
-    - DISCORD_RADAR_CHANNEL_ID
-    - DISCORD_READER_ID
+    - RADAR_BOT_TOKEN
+    - RADAR_CHANNEL_ID
+    - RADAR_READER_ID
 
 discord:
   free_response_channels: ["<Radar channel ID>"]     # reply without @-mentioning the bot
