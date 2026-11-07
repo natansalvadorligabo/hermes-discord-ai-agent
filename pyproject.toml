@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hermes-discord-ai-agent"
+version = "0.1.0"
+description = "A Hermes Agent setup that interviews you, then posts a daily applied-AI radar to Discord and learns from your reactions."
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Natan Salvador Ligabo" }]
+requires-python = ">=3.11"
+dependencies = [
+    "feedparser>=6.0.11",
+    "httpx>=0.28",
+    "pyyaml>=6.0.2",
+]
+
+[project.scripts]
+discord-agent = "agent.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "ruff>=0.8",
+    "types-pyyaml>=6.0.12",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+strict = true
+files = ["src", "tests"]
+mypy_path = "tests"
+
+[[tool.mypy.overrides]]
+module = ["feedparser"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

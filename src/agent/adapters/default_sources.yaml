@@ -1,0 +1,41 @@
+# Starting Sources for an applied-AI Radar, broad on purpose.
+# `discord-agent sources init` copies this file to your agent home; the Interview then
+# adds the Sources that fit you and removes the ones that don't.
+#
+# Two kinds:
+#   feed:         an RSS or Atom URL (blogs, newsletters, GitHub releases at .../releases.atom)
+#   hacker_news:  a Hacker News search query; `min_points` filters the noise (default 30)
+
+sources:
+  # Practitioners writing about building with models
+  - name: Simon Willison
+    feed: https://simonwillison.net/atom/everything/
+  - name: Latent Space
+    feed: https://www.latent.space/feed
+  - name: Interconnects
+    feed: https://www.interconnects.ai/feed
+  - name: Hugging Face blog
+    feed: https://huggingface.co/blog/feed.xml
+
+  # Labs
+  - name: OpenAI news
+    feed: https://openai.com/news/rss.xml
+  - name: Google AI blog
+    feed: https://blog.google/technology/ai/rss/
+
+  # Protocols and tools many teams build on
+  - name: Model Context Protocol releases
+    feed: https://github.com/modelcontextprotocol/modelcontextprotocol/releases.atom
+  - name: Hermes Agent releases
+    feed: https://github.com/NousResearch/hermes-agent/releases.atom
+
+  # Hacker News, where launches and post-mortems surface first
+  - name: "HN: LLM"
+    hacker_news: LLM
+    min_points: 80
+  - name: "HN: AI agents"
+    hacker_news: AI agent
+    min_points: 50
+  - name: "HN: open models"
+    hacker_news: open weights model
+    min_points: 50
