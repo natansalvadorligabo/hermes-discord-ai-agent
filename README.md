@@ -4,6 +4,8 @@ A [Hermes Agent](https://github.com/NousResearch/hermes-agent) setup that interv
 
 The Radar is the first Job; the agent is meant to take on more routines over time.
 
+![A Radar in Discord: the Reader reacts 👍 to a Pick and replies asking for more like it, and Hermes adds that lesson to the Reader profile](docs/media/radar-feedback.gif)
+
 ## How it works
 
 ```
