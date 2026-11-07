@@ -2,59 +2,40 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from datetime import date
 
 from agent.radar.channel import DISLIKE, LIKE, MESSAGE_LIMIT, Channel
-from agent.radar.lead import canonical_url
-from agent.radar.pick import PostedPick, RadarDraft, RadarError
+from agent.radar.draft import DraftError, RadarDraft
 from agent.radar.store import RadarStore
 
 
-@dataclass(frozen=True)
-class Messages:
-    """A Radar laid out as Discord messages: the header first, then one per Pick."""
-
-    header: str
-    picks: list[str] = field(default_factory=list)
-
-
-def post_radar(
-    draft: RadarDraft, day: date, channel: Channel, store: RadarStore
-) -> list[PostedPick]:
+def post_radar(draft: RadarDraft, day: date, channel: Channel, store: RadarStore) -> None:
     """Post the draft as the Radar for `day` and record every Pick in the store.
 
     Every message is checked against Discord's limit first: a Radar posts whole or not at all.
     Example: `post_radar(RadarDraft.from_json(raw), date.today(), channel, store)`
     """
-    messages = lay_out(draft, day)
-    channel.send_message(messages.header)
-    posted: list[PostedPick] = []
-    for pick, content in zip(draft.picks, messages.picks, strict=True):
-        message = channel.send_message(content)
-        channel.add_reaction(message.message_id, LIKE)
-        channel.add_reaction(message.message_id, DISLIKE)
-        posted.append(
-            PostedPick(
-                title=pick.title,
-                url=canonical_url(pick.url),
-                message_id=message.message_id,
-                posted_on=day,
-                topics=pick.topics,
-            )
-        )
+    header, *pick_messages = radar_messages(draft, day)
+    channel.send_message(header)
+    posted = []
+    for pick, content in zip(draft.picks, pick_messages, strict=True):
+        message_id = channel.send_message(content)
+        channel.add_reaction(message_id, LIKE)
+        channel.add_reaction(message_id, DISLIKE)
+        posted.append(pick.posted_as(message_id, day))
     store.record(posted)
-    return posted
 
 
-def lay_out(draft: RadarDraft, day: date) -> Messages:
-    messages = Messages(
-        header=draft.header(day),
-        picks=[pick.as_message(number) for number, pick in enumerate(draft.picks, start=1)],
-    )
-    if len(messages.header) > MESSAGE_LIMIT:
-        raise RadarError(f"the header has {len(messages.header)} characters, limit {MESSAGE_LIMIT}")
-    for number, content in enumerate(messages.picks, start=1):
+def radar_messages(draft: RadarDraft, day: date) -> list[str]:
+    """The Radar as Discord messages: the header, then one per Pick, each within the limit.
+
+    Example: `radar_messages(draft, date.today())` -> `["## Applied AI Radar ...", "**1. ..."]`
+    """
+    messages = [draft.header(day)] + [
+        pick.as_message(number) for number, pick in enumerate(draft.picks, start=1)
+    ]
+    for index, content in enumerate(messages):
         if len(content) > MESSAGE_LIMIT:
-            raise RadarError(f"Pick {number} has {len(content)} characters, limit {MESSAGE_LIMIT}")
+            part = f"Pick {index}" if index else "The header"
+            raise DraftError(f"{part} has {len(content)} characters, limit {MESSAGE_LIMIT}")
     return messages

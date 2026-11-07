@@ -15,7 +15,10 @@ class AgentHome:
 
     @classmethod
     def from_environment(cls) -> AgentHome:
-        """`$DISCORD_AGENT_HOME`, or `~/.discord-agent` when it is not set."""
+        """`$DISCORD_AGENT_HOME`, or `~/.discord-agent` when it is not set.
+
+        Example: `AgentHome.from_environment().reader_profile`
+        """
         configured = os.environ.get(HOME_VARIABLE)
         return cls(Path(configured).expanduser() if configured else Path.home() / ".discord-agent")
 

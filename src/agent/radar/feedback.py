@@ -1,46 +1,55 @@
-"""Feedback from reactions: turning 👍/👎 on posted Picks into Verdicts."""
+"""Feedback from reactions: the Reader's 👍/👎 on posted Picks, read as Verdicts."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, timedelta
 
-from agent.radar.channel import DISLIKE, LIKE, Channel, Reaction
-from agent.radar.pick import Verdict, VerdictChange
-from agent.radar.store import RadarStore
+from agent.radar.channel import DISLIKE, LIKE, Channel
+from agent.radar.pick import PostedPick, Verdict
 
 VERDICT_WINDOW_DAYS = 14
+VERDICTS = {
+    (True, False): Verdict.LIKED,
+    (False, True): Verdict.DISLIKED,
+    (True, True): Verdict.MIXED,
+    (False, False): Verdict.NONE,
+}
 
 
-def verdict_from(reactions: list[Reaction]) -> Verdict:
-    """The Reader's Verdict on one Pick, ignoring the bot's own like/dislike buttons.
+@dataclass(frozen=True)
+class VerdictReading:
+    """The Verdict read now on a posted Pick; `changed` when it differs from the saved one."""
 
-    Example: `verdict_from([Reaction("👍", count=2, includes_bot=True)])` -> `Verdict.LIKED`
-    """
-    people = {reaction.emoji: reaction.people for reaction in reactions}
-    liked = people.get(LIKE, 0) > 0
-    disliked = people.get(DISLIKE, 0) > 0
-    if liked and disliked:
-        return Verdict.MIXED
-    if liked:
-        return Verdict.LIKED
-    if disliked:
-        return Verdict.DISLIKED
-    return Verdict.NONE
+    pick: PostedPick
+    verdict: Verdict
+
+    @property
+    def changed(self) -> bool:
+        return self.verdict is not self.pick.verdict
 
 
-def sync_verdicts(
-    store: RadarStore, channel: Channel, today: date, window_days: int = VERDICT_WINDOW_DAYS
-) -> list[VerdictChange]:
-    """Read reactions on Picks posted in the last `window_days`, save them, return what changed.
+def read_verdicts(
+    picks: list[PostedPick],
+    channel: Channel,
+    reader_id: str,
+    today: date,
+    window_days: int = VERDICT_WINDOW_DAYS,
+) -> list[VerdictReading]:
+    """The Reader's Verdict on every Pick posted in the last `window_days`.
 
-    Example: `sync_verdicts(store, channel, today=date.today())` -> `[VerdictChange(...)]`
+    Only the Reader's own reactions count. Saving them is the caller's choice.
+    Example: `read_verdicts(store.posted_picks(), channel, reader_id="123", today=date.today())`
     """
     oldest = today - timedelta(days=window_days)
-    recent = [pick for pick in store.posted_picks() if pick.posted_on >= oldest]
-    changes = []
-    for pick in recent:
-        verdict = verdict_from(channel.reactions_on(pick.message_id))
-        if verdict is not pick.verdict:
-            changes.append(VerdictChange(pick=pick, previous=pick.verdict, verdict=verdict))
-    store.save_verdicts({change.pick.message_id: change.verdict for change in changes})
-    return changes
+    return [
+        VerdictReading(pick=pick, verdict=_reader_verdict(pick.message_id, channel, reader_id))
+        for pick in picks
+        if pick.posted_on >= oldest
+    ]
+
+
+def _reader_verdict(message_id: str, channel: Channel, reader_id: str) -> Verdict:
+    liked = reader_id in channel.people_who_reacted(message_id, LIKE)
+    disliked = reader_id in channel.people_who_reacted(message_id, DISLIKE)
+    return VERDICTS[(liked, disliked)]

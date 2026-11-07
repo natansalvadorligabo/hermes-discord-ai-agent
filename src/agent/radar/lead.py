@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Container, Iterable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Protocol
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+MIN_WINDOW = timedelta(hours=36)
+MAX_WINDOW = timedelta(days=7)
 TRACKING_PARAMS = frozenset({"fbclid", "gclid", "mc_cid", "mc_eid", "ref", "source"})
 
 
@@ -62,18 +64,35 @@ def collect_leads(
     A Source that fails is reported in `failures` and the others still count.
     Example: `collect_leads(sources, since=yesterday, posted_urls=store.posted_urls())`
     """
-    leads: dict[str, Lead] = {}
+    found: list[Lead] = []
     failures: list[SourceFailure] = []
     for source in sources:
         try:
-            found = source.leads_since(since)
+            found += source.leads_since(since)
         # One dead feed must not cost the Reader the whole Radar, so any error is reported instead.
         except Exception as error:
             failures.append(SourceFailure(source=source.name, error=str(error)))
-            continue
-        for lead in found:
-            key = canonical_url(lead.url)
-            if key not in posted_urls and key not in leads:
-                leads[key] = lead
-    newest_first = sorted(leads.values(), key=lambda lead: lead.published_at, reverse=True)
+    leads = _one_per_story(found, posted_urls)
+    newest_first = sorted(leads, key=lambda lead: lead.published_at, reverse=True)
     return LeadReport(leads=newest_first, failures=failures)
+
+
+def leads_window_start(now: datetime, last_radar_day: date | None) -> datetime:
+    """Where the search for Leads starts: back to the last Radar's day, within 36 hours to 7 days.
+
+    Reaching back to the last Radar covers weekends and any schedule the Reader picked;
+    posted links are left out anyway, so a wider window never repeats a Pick.
+    Example: `leads_window_start(datetime.now(UTC), store.last_radar_day())`
+    """
+    start = now - MIN_WINDOW
+    if last_radar_day is not None:
+        start = min(start, datetime.combine(last_radar_day, time(), tzinfo=UTC))
+    return max(start, now - MAX_WINDOW)
+
+
+def _one_per_story(leads: list[Lead], posted_urls: Container[str]) -> list[Lead]:
+    """The first Lead for each canonical URL, in Source order, never one already posted."""
+    by_url: dict[str, Lead] = {}
+    for lead in leads:
+        by_url.setdefault(canonical_url(lead.url), lead)
+    return [lead for url, lead in by_url.items() if url not in posted_urls]

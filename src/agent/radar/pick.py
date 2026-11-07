@@ -1,17 +1,12 @@
-"""Picks: the Leads the agent chose for a Radar, how they read on Discord, and their Verdicts."""
+"""Picks: the Leads the agent chose for a Radar, and the Reader's Verdict once posted."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 
-from agent.radar.channel import DISLIKE, LIKE
-
-
-class RadarError(Exception):
-    pass
+from agent.radar.lead import canonical_url
 
 
 class Verdict(StrEnum):
@@ -29,41 +24,30 @@ class Pick:
     topics: tuple[str, ...] = ()
 
     def as_message(self, number: int) -> str:
-        """The Discord message for this Pick, e.g. `**1. Title**`, the why, the link, the topics."""
+        """The Pick as one Discord message.
+
+        Example: `pick.as_message(1)` -> `"**1. Title**\\nWhy...\\n<https://...>\\n-# evals · ci"`
+        """
         lines = [f"**{number}. {self.title}**", self.why_it_matters, f"<{self.url}>"]
         if self.topics:
             lines.append("-# " + " · ".join(self.topics))
         return "\n".join(lines)
 
-
-@dataclass(frozen=True)
-class RadarDraft:
-    picks: list[Pick]
-    intro: str = ""
-
-    @classmethod
-    def from_json(cls, raw: object) -> RadarDraft:
-        """The draft the agent wrote, e.g. `{"intro": "...", "picks": [{"title", "url", ...}]}`."""
-        if not isinstance(raw, Mapping):
-            raise RadarError(f"expected a JSON object with 'picks', got {type(raw).__name__}")
-        picks = raw.get("picks")
-        if not isinstance(picks, list) or not picks:
-            raise RadarError("expected 'picks' to be a non-empty list")
-        return cls(
-            intro=str(raw.get("intro", "")),
-            picks=[pick_from_json(item, f"picks[{i}]") for i, item in enumerate(picks)],
+    def posted_as(self, message_id: str, day: date) -> PostedPick:
+        """This Pick as recorded once posted, e.g. `pick.posted_as("123", date.today())`."""
+        return PostedPick(
+            title=self.title,
+            url=canonical_url(self.url),
+            message_id=message_id,
+            posted_on=day,
+            topics=self.topics,
         )
-
-    def header(self, day: date) -> str:
-        lines = [f"## Applied AI Radar · {day:%a, %b} {day.day}"]
-        if self.intro:
-            lines.append(self.intro)
-        lines.append(f"-# React {LIKE} or {DISLIKE} on each pick, or reply with what you want.")
-        return "\n".join(lines)
 
 
 @dataclass(frozen=True)
 class PostedPick:
+    """A Pick as posted. Its `url` is canonical, so it matches Leads for the same story."""
+
     title: str
     url: str
     message_id: str
@@ -72,27 +56,6 @@ class PostedPick:
     verdict: Verdict = Verdict.NONE
 
 
-@dataclass(frozen=True)
-class VerdictChange:
-    pick: PostedPick
-    previous: Verdict
-    verdict: Verdict
-
-
-def pick_from_json(raw: object, where: str) -> Pick:
-    if not isinstance(raw, Mapping):
-        raise RadarError(f"expected {where} to be an object, got {type(raw).__name__}")
-    topics = raw.get("topics", [])
-    return Pick(
-        title=required_text(raw, "title", where),
-        url=required_text(raw, "url", where),
-        why_it_matters=required_text(raw, "why_it_matters", where),
-        topics=tuple(str(topic) for topic in topics) if isinstance(topics, list) else (),
-    )
-
-
-def required_text(raw: Mapping[str, object], key: str, where: str) -> str:
-    value = raw.get(key)
-    if not isinstance(value, str) or not value.strip():
-        raise RadarError(f"expected {where}.{key} to be a non-empty string, got {value!r}")
-    return value.strip()
+def topics_from(raw: object) -> tuple[str, ...]:
+    """Topic tags from a JSON value, e.g. `topics_from(["evals", "ci"])` -> `("evals", "ci")`."""
+    return tuple(str(topic) for topic in raw) if isinstance(raw, list) else ()

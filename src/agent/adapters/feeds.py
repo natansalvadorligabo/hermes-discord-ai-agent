@@ -22,7 +22,10 @@ WHITESPACE = re.compile(r"\s+")
 
 @dataclass
 class FeedSource:
-    """An RSS or Atom feed: a blog, a newsletter, or GitHub releases (`.../releases.atom`)."""
+    """An RSS or Atom feed: a blog, a newsletter, or GitHub releases (`.../releases.atom`).
+
+    Example: `FeedSource("Simon Willison", "https://simonwillison.net/atom/everything/", http)`
+    """
 
     name: str
     url: str
@@ -30,6 +33,7 @@ class FeedSource:
     max_leads: int = 15
 
     def leads_since(self, since: datetime) -> list[Lead]:
+        """Dated entries published since `since`, at most `max_leads`; undated ones are skipped."""
         feed = feedparser.parse(get_text(self.http, self.url))
         leads = [lead for entry in feed.entries if (lead := self._lead_from(entry)) is not None]
         return [lead for lead in leads if lead.published_at >= since][: self.max_leads]
@@ -51,7 +55,10 @@ class FeedSource:
 
 @dataclass
 class HackerNewsSource:
-    """Hacker News stories matching a query, through the Algolia search API."""
+    """Hacker News stories matching a query, through the Algolia search API.
+
+    Example: `HackerNewsSource("HN: agents", query="AI agent", http=http, min_points=50)`
+    """
 
     name: str
     query: str
@@ -60,6 +67,7 @@ class HackerNewsSource:
     max_leads: int = 15
 
     def leads_since(self, since: datetime) -> list[Lead]:
+        """Stories posted since `since` with at least `min_points`, at most `max_leads`."""
         params = {
             "query": self.query,
             "tags": "story",
@@ -69,10 +77,11 @@ class HackerNewsSource:
         body = json.loads(get_text(self.http, HACKER_NEWS_SEARCH_URL, params))
         hits = body.get("hits") if isinstance(body, dict) else None
         if not isinstance(hits, list):
-            raise HttpError(f"expected a JSON object with a 'hits' list from {self.name}")
+            raise HttpError(
+                f"expected a JSON object with a 'hits' list from {self.name}, got {body!r:.200}"
+            )
         leads = [self._lead_from(hit) for hit in hits if isinstance(hit, dict)]
-        newest_first = sorted(leads, key=lambda lead: lead.published_at, reverse=True)
-        return [lead for lead in newest_first if lead.published_at >= since]
+        return [lead for lead in leads if lead.published_at >= since]
 
     def _lead_from(self, hit: dict[str, object]) -> Lead:
         story_id = str(hit.get("objectID", ""))

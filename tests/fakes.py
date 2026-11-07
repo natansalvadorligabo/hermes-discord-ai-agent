@@ -1,17 +1,21 @@
-"""Test doubles for the HTTP boundary and the Discord channel."""
+"""Test doubles for the HTTP boundary and the Radar channel."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
 from agent.adapters.http import HttpRequest, HttpResponse
-from agent.radar.channel import Reaction, SentMessage
+
+BOT_ID = "bot"
 
 
 class FakeHttpClient:
-    """Answers requests from canned responses keyed by URL; unknown URLs fail like a dead host."""
+    """Answers from canned responses keyed by URL; a list answers in order, one per request.
 
-    def __init__(self, responses: dict[str, HttpResponse]) -> None:
+    Unknown URLs fail like a dead host.
+    """
+
+    def __init__(self, responses: dict[str, HttpResponse | list[HttpResponse]]) -> None:
         self._responses = responses
         self.requests: list[HttpRequest] = []
 
@@ -19,7 +23,8 @@ class FakeHttpClient:
         self.requests.append(request)
         if request.url not in self._responses:
             raise ConnectionError(f"no route to {request.url}")
-        return self._responses[request.url]
+        answer = self._responses[request.url]
+        return answer.pop(0) if isinstance(answer, list) else answer
 
 
 def ok(text: str) -> HttpResponse:
@@ -27,20 +32,22 @@ def ok(text: str) -> HttpResponse:
 
 
 @dataclass
-class FakeDiscordChannel:
-    """An in-memory channel: keeps sent messages and lets tests set reactions on them."""
+class FakeChannel:
+    """An in-memory Radar channel. Message IDs are "m1", "m2"... in sending order."""
 
     messages: dict[str, str] = field(default_factory=dict)
-    own_reactions: dict[str, list[str]] = field(default_factory=dict)
-    reactions: dict[str, list[Reaction]] = field(default_factory=dict)
+    reactions: dict[tuple[str, str], set[str]] = field(default_factory=dict)
 
-    def send_message(self, content: str) -> SentMessage:
-        message_id = str(1000 + len(self.messages))
+    def send_message(self, content: str) -> str:
+        message_id = f"m{len(self.messages) + 1}"
         self.messages[message_id] = content
-        return SentMessage(message_id=message_id, channel_id="trends")
+        return message_id
 
     def add_reaction(self, message_id: str, emoji: str) -> None:
-        self.own_reactions.setdefault(message_id, []).append(emoji)
+        self.react(BOT_ID, message_id, emoji)
 
-    def reactions_on(self, message_id: str) -> list[Reaction]:
-        return self.reactions.get(message_id, [])
+    def people_who_reacted(self, message_id: str, emoji: str) -> set[str]:
+        return set(self.reactions.get((message_id, emoji), set()))
+
+    def react(self, person: str, message_id: str, emoji: str) -> None:
+        self.reactions.setdefault((message_id, emoji), set()).add(person)

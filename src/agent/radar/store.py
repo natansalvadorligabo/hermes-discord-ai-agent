@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import date
 from typing import Protocol
 
 from agent.radar.pick import PostedPick, Verdict
@@ -12,6 +13,8 @@ class RadarStore(Protocol):
     def posted_picks(self) -> list[PostedPick]: ...
 
     def posted_urls(self) -> set[str]: ...
+
+    def last_radar_day(self) -> date | None: ...
 
     def record(self, picks: list[PostedPick]) -> None: ...
 

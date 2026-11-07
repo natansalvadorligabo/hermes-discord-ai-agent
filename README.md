@@ -9,8 +9,8 @@ The Radar is the first Job; the agent is meant to take on more routines over tim
 ```
                  ┌───────────── Hermes Agent ─────────────┐
  08:00 cron ───▶ │ daily-radar skill                      │
-                 │  1. discord-agent radar feedback  ◀────┼──── 👍/👎 on past Picks
-                 │  2. read your Reader profile           │
+                 │  1. read your Reader profile           │
+                 │  2. discord-agent radar feedback  ◀────┼──── your 👍/👎 on past Picks
                  │  3. discord-agent radar leads   ◀──────┼──── feeds, GitHub releases, Hacker News
                  │  4. pick, open and read each link      │
                  │  5. discord-agent radar post  ─────────┼───▶ #radar: header + one message per Pick
@@ -51,6 +51,7 @@ DISCORD_BOT_TOKEN=...
 DISCORD_ALLOWED_USERS=<your Discord user ID>
 DISCORD_HOME_CHANNEL=<Radar channel ID>
 DISCORD_RADAR_CHANNEL_ID=<Radar channel ID>
+DISCORD_READER_ID=<your Discord user ID>      # only your reactions count
 ```
 
 ### 3. Point Hermes at the skills
@@ -68,6 +69,7 @@ terminal:
   env_passthrough:                    # lets `discord-agent` post and read reactions
     - DISCORD_BOT_TOKEN
     - DISCORD_RADAR_CHANNEL_ID
+    - DISCORD_READER_ID
 
 discord:
   free_response_channels: ["<Radar channel ID>"]     # reply without @-mentioning the bot
@@ -83,11 +85,11 @@ Start the gateway: `hermes gateway install` (or `hermes gateway` in the foregrou
 
 Message the bot: _"Interview me for my Radar."_ The `reader-interview` skill asks about your work, goals, what you are learning, what to skip and how you want the Radar, writes your Reader profile, tunes your Sources and schedules the `daily-radar` Job.
 
-To schedule it by hand instead: `discord-agent jobs commands` prints the `hermes cron create` command from [`jobs/daily-radar.yaml`](jobs/daily-radar.yaml).
+To schedule it by hand instead: `discord-agent jobs command daily-radar --schedule "0 8 * * 1-5" --timezone <Area/City>` prints the `hermes cron create` line from [`jobs/daily-radar.yaml`](jobs/daily-radar.yaml).
 
 ## Teaching it
 
-- **React** 👍 or 👎 on a Pick. Before the next Radar, the agent reads the reactions and writes what it learned under `## Learned from feedback` in your profile.
+- **React** 👍 or 👎 on a Pick. Before each Radar, the agent reads your reactions from the last two weeks (only yours count) and writes the patterns it sees under `## Learned from feedback` in your profile.
 - **Reply** in the Radar channel (_"more like #3"_, _"skip funding rounds"_). Words weigh more than reactions.
 - **Edit** `~/.discord-agent/reader-profile.md` or `sources.yaml` yourself at any time; they are plain files.
 
@@ -97,10 +99,10 @@ To schedule it by hand instead: `discord-agent jobs commands` prints the `hermes
 | --- | --- |
 | `discord-agent home` | Where your profile, Sources and Radar store live |
 | `discord-agent sources init` | Copy the starting Sources to your home so you can edit them |
-| `discord-agent radar leads [--since-hours 36]` | Recent Leads never posted before, as JSON |
+| `discord-agent radar leads` | Leads since the last Radar (36 hours to 7 days) never posted before, as JSON |
 | `discord-agent radar post <draft.json>` | Post a Radar draft to the Radar channel |
-| `discord-agent radar feedback [--window-days 14]` | Read 👍/👎 on recent Picks and report the Verdicts that changed |
-| `discord-agent jobs commands` | Print the `hermes cron create` commands for `jobs/*.yaml` |
+| `discord-agent radar feedback [--window-days 14]` | Save your latest 👍/👎 and list every recent Pick you reacted to |
+| `discord-agent jobs command <name> [--schedule] [--timezone]` | Print the `hermes cron create` line for a Job in `jobs/` |
 
 ## Develop
 

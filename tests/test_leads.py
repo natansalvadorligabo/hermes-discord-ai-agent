@@ -1,9 +1,9 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from fakes import FakeHttpClient, ok
 
 from agent.adapters.feeds import FeedSource, HackerNewsSource
-from agent.radar.lead import Source, collect_leads
+from agent.radar.lead import Source, collect_leads, leads_window_start
 
 SINCE = datetime(2026, 11, 6, 8, 0, tzinfo=UTC)
 
@@ -123,3 +123,19 @@ def test_a_broken_source_is_reported_and_the_others_still_return_leads() -> None
     assert len(report.leads) == 2
     assert [failure.source for failure in report.failures] == ["Dead blog"]
     assert "dead.example.com" in report.failures[0].error
+
+
+def test_the_window_reaches_back_to_the_last_radar_when_it_was_days_ago() -> None:
+    now = datetime(2026, 11, 9, 11, 0, tzinfo=UTC)
+
+    assert leads_window_start(now, last_radar_day=date(2026, 11, 6)) == datetime(
+        2026, 11, 6, tzinfo=UTC
+    )
+
+
+def test_the_window_is_at_least_36_hours_and_at_most_a_week() -> None:
+    now = datetime(2026, 11, 9, 11, 0, tzinfo=UTC)
+
+    assert leads_window_start(now, last_radar_day=date(2026, 11, 9)) == now - timedelta(hours=36)
+    assert leads_window_start(now, last_radar_day=None) == now - timedelta(hours=36)
+    assert leads_window_start(now, last_radar_day=date(2026, 9, 1)) == now - timedelta(days=7)

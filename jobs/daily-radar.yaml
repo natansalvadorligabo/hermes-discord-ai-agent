@@ -1,4 +1,4 @@
-# The daily Radar. Install with: discord-agent jobs commands  (prints `hermes cron create ...`)
+# The daily Radar. Install with: discord-agent jobs command daily-radar [--schedule ...] [--timezone ...]
 # The Radar posts itself to Discord (docs/adr/0001), so Hermes keeps the run log locally.
 # Add `timezone: Area/City` to override the timezone set in your Hermes config.
 name: daily-radar

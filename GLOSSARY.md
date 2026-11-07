@@ -34,12 +34,16 @@ _Avoid_: Provider, channel, origin
 A recent link a Source returned that has never been posted in a Radar.
 _Avoid_: Candidate, item, article, story
 
+**Draft**:
+The Radar as the agent wrote it, before it is posted.
+_Avoid_: Preview, proposal
+
 **Pick**:
 A Lead the agent chose for a Radar, with why it matters to the Reader.
 _Avoid_: Highlight, selection, entry
 
 **Verdict**:
-The Reader's judgment of a posted Pick, read from their reactions: liked, disliked, mixed, or none yet.
+The Reader's judgment of a posted Pick, read from their own reactions only: liked, disliked, mixed, or none yet.
 _Avoid_: Rating, score, vote
 
 **Feedback**:
@@ -49,5 +53,5 @@ _Avoid_: Signals, input
 ## Running
 
 **Job**:
-A routine the agent runs on a schedule, such as the daily Radar.
+Something the agent does on a schedule, such as the daily Radar.
 _Avoid_: Task, routine, cron
