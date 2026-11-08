@@ -123,7 +123,8 @@ From your machine, in the repo:
 | `just deploy <cloud>` | Copy `compose.yaml` and `prompts/`, pull the latest image, (re)start the agent |
 | `just move <from> <to>` | Stop the agent on one VM and start it, with all its data, on the other |
 | `just switch <from> <to>` | `up <to>`, `move <from> <to>`, `down <from>` |
-| `just down <cloud>` | Save the VM's data to `infra/.state-backups`, then destroy the VM |
+| `just down <cloud>` | Stop the agent, save the VM's data to `infra/.state-backups`, then destroy the VM |
+| `just restore <cloud> <backup.tgz>` | Replace the VM's data with a backup from `down` and start the agent (after `just up`) |
 | `just logs <cloud>` / `just ssh <cloud>` | Follow the agent's logs / a shell on the VM |
 | `just refresh <cloud>` | Read the VM's current IP into Terraform's state (GCP's changes nightly) |
 

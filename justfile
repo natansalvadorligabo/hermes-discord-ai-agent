@@ -2,7 +2,8 @@
 #
 # The agent runs as a Docker container on a VM in AWS or GCP. Everything it knows is in
 # /srv/hermes on the VM, so moving it between clouds is stopping it, streaming that directory to
-# the other VM, and starting it there. Only one VM may run it at a time, or the Radar posts twice.
+# the other VM, and starting it there; `down` keeps a copy of it and `restore` brings it back.
+# Only one VM may run the agent at a time, or the Radar posts twice.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
@@ -77,9 +78,17 @@ switch from to:
 # Save a cloud's /srv/hermes under infra/.state-backups, then destroy its VM
 down cloud: (refresh cloud)
     mkdir -p infra/.state-backups
+    just ssh {{ cloud }} "cd {{ stack }} && sudo docker compose down"
     just ssh {{ cloud }} sudo tar -C /srv -czf - hermes > "infra/.state-backups/{{ cloud }}-$(date +%Y%m%d-%H%M%S).tgz"
     terraform -chdir=infra/{{ cloud }} destroy
     rm -f infra/{{ cloud }}/.known_hosts
+
+# Replace a cloud's /srv/hermes with a backup saved by `just down`, then start the agent there
+restore cloud backup: (refresh cloud)
+    test -f {{ quote(backup) }}
+    just ssh {{ cloud }} "cd {{ stack }} 2>/dev/null && sudo docker compose down || true"
+    just ssh {{ cloud }} "sudo rm -rf /srv/hermes && sudo tar -C /srv -xzf -" < {{ quote(backup) }}
+    just deploy {{ cloud }}
 
 # Follow the agent's logs on a cloud's VM
 logs cloud: (refresh cloud)
