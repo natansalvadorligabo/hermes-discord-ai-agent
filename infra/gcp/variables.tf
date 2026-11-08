@@ -29,3 +29,15 @@ variable "ssh_cidr" {
   description = "Who may SSH in. Defaults to your current public IP; re-apply when it changes."
 }
 
+variable "schedule_time_zone" {
+  type        = string
+  default     = "America/Sao_Paulo"
+  description = "Time zone of the nightly stop (03:00 to 05:00)."
+}
+
+variable "billing_account" {
+  type        = string
+  default     = null
+  description = "Billing account ID (XXXXXX-XXXXXX-XXXXXX) for the spend alert. No budget is created when unset."
+}
+

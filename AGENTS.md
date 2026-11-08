@@ -14,7 +14,8 @@ Dockerfile, compose.yaml  the image and how a VM runs it; all state in the data 
 infra/
   aws/, gcp/  one Terraform root per cloud, each with outputs `host` and `user`
   cloud-init.yaml.tftpl   the first boot both clouds share: a login user and Docker
-justfile      every command: checks, image build, VM lifecycle, moving the agent (docs/adr/0002)
+justfile      every command: checks, image build, VM lifecycle, moving the agent (docs/adr/0002),
+              deploying by hand (docs/adr/0003)
 ```
 
 `radar/` and `jobs/` import nothing from `adapters/` or `cli.py`. Each third-party library appears in exactly one adapter file (`http.py`, `feeds.py`, `config_files.py`). Handlers in `cli.py` are named for what they do: commands (`post_draft`, `sync_feedback`) change state, queries (`recent_leads`, `home_paths`) only read. A new Job is a `jobs/*.yaml` file plus, if it needs one, a skill in `skills/`; a new domain gets its own folder beside `radar/`.

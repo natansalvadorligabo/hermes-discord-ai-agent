@@ -30,7 +30,7 @@ The words used here (Reader, Lead, Pick, Verdict...) are defined in [GLOSSARY.md
 
 ## Setup
 
-The agent runs as a container on a small VM in **AWS** (EC2 `t3.small`, about US$15/month) or **GCP** (Always Free `e2-micro`), and moves between them with one command. You need Linux (WSL on Windows) with [mise](https://mise.jdx.dev) and Docker, and a Discord server you manage.
+The agent runs as a container on a small VM in **AWS** (EC2 `t3.small`, about US$15/month) or **GCP** (Free Tier `e2-micro`, US$0), and moves between them with one command. You need Linux (WSL on Windows) with [mise](https://mise.jdx.dev) and Docker, and a Discord server you manage.
 
 ### 1. Tools and a VM
 
@@ -44,6 +44,8 @@ just up aws                                       # create the VM; GCP: set proj
 ```
 
 SSH to the VM is open only to the IP you applied from; run `just up` again when yours changes.
+
+**On GCP**, the project needs an active billing account (the Free Tier requires one) and the [gcloud CLI](https://cloud.google.com/sdk/docs/install) for the login above. Copy `infra/gcp/terraform.tfvars.example` to `terraform.tfvars` and set `project`, and `billing_account` for an email at the first cent spent. Everything in `infra/gcp` stays inside the Free Tier, checked against Google's billing catalog: the external IPv4 is free for 721 hours a month and a month can have 744, so the VM stops every night from 03:00 to 05:00. Its IP changes after each stop; `just deploy`, `logs`, `move` and `down` read the new one, and `just refresh gcp` does it before a bare `just ssh gcp`.
 
 ### 2. Create the Discord bot
 
@@ -123,8 +125,9 @@ From your machine, in the repo:
 | `just switch <from> <to>` | `up <to>`, `move <from> <to>`, `down <from>` |
 | `just down <cloud>` | Save the VM's data to `infra/.state-backups`, then destroy the VM |
 | `just logs <cloud>` / `just ssh <cloud>` | Follow the agent's logs / a shell on the VM |
+| `just refresh <cloud>` | Read the VM's current IP into Terraform's state (GCP's changes nightly) |
 
-Only one VM should run the agent at a time, or the Radar posts twice. Why one Terraform root per cloud instead of a single toggle: [ADR 0002](docs/adr/0002-one-terraform-root-per-cloud.md).
+Only one VM should run the agent at a time, or the Radar posts twice. Why one Terraform root per cloud instead of a single toggle: [ADR 0002](docs/adr/0002-one-terraform-root-per-cloud.md). Why a merge to main reaches the VM only through `just deploy`: [ADR 0003](docs/adr/0003-deploy-by-hand-with-just-deploy.md).
 
 Inside the container (`just ssh aws sudo docker exec hermes discord-agent ...`):
 

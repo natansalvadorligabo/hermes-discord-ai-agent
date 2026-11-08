@@ -1,2 +1,3 @@
 # Copy to terraform.tfvars (git-ignored); project is required.
 project = "your-gcp-project-id"
+# billing_account = "XXXXXX-XXXXXX-XXXXXX"   # emails the billing admins at the first cent spent

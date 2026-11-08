@@ -38,8 +38,13 @@ ssh-options cloud:
 address cloud:
     @echo "$(terraform -chdir=infra/{{ cloud }} output -raw user)@$(terraform -chdir=infra/{{ cloud }} output -raw host)"
 
-# Run a command on a cloud's VM, or open a shell there. The command is quoted whole, so `;`
-# and `|` in it run on the VM, not here.
+# Read the VM's current IP into Terraform's state without changing anything. GCP's IP changes
+# after each nightly stop; AWS's does not, and refreshing it is harmless.
+refresh cloud:
+    terraform -chdir=infra/{{ cloud }} apply -refresh-only -auto-approve -input=false >/dev/null
+
+# Run a command on a cloud's VM, or open a shell there (after `just refresh` if its IP moved).
+# The command is quoted whole, so `;` and `|` in it run on the VM, not here.
 ssh cloud *command:
     ssh $(just ssh-options {{ cloud }}) "$(just address {{ cloud }})" {{ if command == "" { "" } else { quote(command) } }}
 
@@ -52,13 +57,13 @@ up cloud:
     just ssh {{ cloud }} cloud-init status --wait
 
 # Copy compose.yaml and prompts/ to a cloud's VM, pull the image and (re)start the agent
-deploy cloud:
+deploy cloud: (refresh cloud)
     scp -r $(just ssh-options {{ cloud }}) compose.yaml prompts "$(just address {{ cloud }}):{{ stack }}/"
     just ssh {{ cloud }} "cd {{ stack }} && sudo docker compose pull -q && sudo docker compose up -d"
     just ssh {{ cloud }} sudo docker exec hermes hermes gateway status
 
 # Stop the agent on one cloud's VM and start it, with all it knows, on the other's
-move from to:
+move from to: (refresh from) (refresh to)
     just ssh {{ from }} "cd {{ stack }} && sudo docker compose down"
     just ssh {{ from }} sudo tar -C /srv -czf - hermes | just ssh {{ to }} sudo tar -C /srv -xzf -
     just deploy {{ to }}
@@ -70,12 +75,12 @@ switch from to:
     just down {{ from }}
 
 # Save a cloud's /srv/hermes under infra/.state-backups, then destroy its VM
-down cloud:
+down cloud: (refresh cloud)
     mkdir -p infra/.state-backups
     just ssh {{ cloud }} sudo tar -C /srv -czf - hermes > "infra/.state-backups/{{ cloud }}-$(date +%Y%m%d-%H%M%S).tgz"
     terraform -chdir=infra/{{ cloud }} destroy
     rm -f infra/{{ cloud }}/.known_hosts
 
 # Follow the agent's logs on a cloud's VM
-logs cloud:
+logs cloud: (refresh cloud)
     just ssh {{ cloud }} sudo docker logs -f --tail 100 hermes
