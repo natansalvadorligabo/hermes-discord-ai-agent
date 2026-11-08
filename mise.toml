@@ -1,0 +1,8 @@
+# The tools this repo needs, at the versions CI uses. `mise install` puts them on PATH inside the
+# repo. Linux only (WSL, CI): the agent runs on Linux, so it is developed there. Docker comes
+# from Docker Desktop on WSL (Settings > Resources > WSL integration) or the CI runner.
+[tools]
+uv = "0.13.7"
+just = "1.59.0"
+terraform = "1.17.1"
+aws-cli = "2.39.6"

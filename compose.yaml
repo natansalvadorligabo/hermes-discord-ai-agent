@@ -1,0 +1,17 @@
+# The agent on a Docker host. `just deploy` copies this file and prompts/ to the VM and starts it.
+# All state (Hermes config, .env, sessions, cron Jobs, the Radar store) lives in the data
+# directory, so moving the agent is moving that directory.
+services:
+  hermes:
+    image: ${HERMES_IMAGE:-ghcr.io/natansalvadorligabo/hermes-discord-ai-agent:main}
+    container_name: hermes
+    restart: unless-stopped
+    command: ["gateway", "run"]
+    environment:
+      # The Radar's files sit in the data volume with everything else.
+      - DISCORD_AGENT_HOME=/opt/data/discord-agent
+    volumes:
+      - ${HERMES_DATA:-/srv/hermes}:/opt/data
+      # The agent's personality comes from the repo, read-only: change it in git, then deploy.
+      - ./prompts/SOUL.md:/opt/data/SOUL.md:ro
+    # No ports: the Discord gateway only connects out.

@@ -1,1 +1,5 @@
+# LF everywhere: the scripts and the cloud-init template run on Linux (WSL, the VMs, CI),
+# where CRLF breaks bash and cloud-init. Overrides core.autocrlf on Windows checkouts.
 * text=auto eol=lf
+*.gif binary
+*.png binary

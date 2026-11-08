@@ -1,0 +1,27 @@
+#cloud-config
+# The same first boot on every cloud, which is what makes a VM on AWS and one on GCP
+# interchangeable: a login user and Docker. `just deploy` brings compose.yaml and prompts/ to
+# /opt/hermes-stack and starts the agent; its state lives in /srv/hermes.
+#
+# The login user is `ops`, with sudo. Not `admin`: Ubuntu already has an `admin` group, useradd
+# refuses the name, and cloud-init then skips every user after it.
+
+users:
+  - name: ops
+    groups: [sudo]
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys: ["${ssh_public_key}"]
+
+# 1 GB machines (GCP e2-micro) need it next to the agent.
+swap:
+  filename: /swapfile
+  size: 2G
+
+package_update: true
+packages: [docker.io, docker-compose-v2, docker-buildx] # buildx: BuildKit, not the legacy builder
+
+runcmd:
+  - systemctl enable --now docker
+  - mkdir -p /srv/hermes /opt/hermes-stack
+  - chown ops:ops /opt/hermes-stack

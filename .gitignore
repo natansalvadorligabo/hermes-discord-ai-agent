@@ -8,3 +8,14 @@ dist/
 build/
 *.egg-info/
 .env
+
+# Terraform: state and tfvars hold IPs and account details; the lock file is committed
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+*.tfplan
+infra/*/.known_hosts
+# just down: copies of /srv/hermes, .env with tokens included
+infra/.state-backups/

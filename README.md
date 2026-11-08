@@ -20,25 +20,30 @@ The Radar is the first Job; the agent is meant to take on more routines over tim
  your reply in #radar ───▶ radar-feedback skill ───▶ Reader profile
 ```
 
-- **Hermes** does the thinking, the scheduling and the conversation on Discord.
+- **Hermes** does the thinking, the scheduling and the conversation on Discord. Its personality is [`prompts/SOUL.md`](prompts/SOUL.md), the file Hermes reads as its identity.
 - **Three skills** (`skills/`) tell it how: `reader-interview`, `daily-radar`, `radar-feedback`.
 - **`discord-agent`**, a small Python CLI, does the deterministic parts: collecting Leads, posting the Radar, reading reactions back. Each Pick is its own message so a reaction belongs to one Pick ([why the CLI posts instead of Hermes](docs/adr/0001-post-picks-through-discord-rest.md)).
-- **Your data** lives outside the repo, in `~/.discord-agent/` (or `$DISCORD_AGENT_HOME`): `reader-profile.md`, `sources.yaml`, `radar.json`.
+- **One Docker image** holds all three: the official Hermes image plus this repo's skills and CLI ([`Dockerfile`](Dockerfile)). CI publishes it to `ghcr.io/natansalvadorligabo/hermes-discord-ai-agent`.
+- **Your data** lives outside the repo, in the container's data directory (`/srv/hermes` on the VM): the Hermes config and `.env`, sessions, cron Jobs, and the Radar's files under `discord-agent/` (`reader-profile.md`, `sources.yaml`, `radar.json`).
 
 The words used here (Reader, Lead, Pick, Verdict...) are defined in [GLOSSARY.md](GLOSSARY.md).
 
 ## Setup
 
-You need [uv](https://docs.astral.sh/uv/), Hermes Agent and a Discord server you manage.
+The agent runs as a container on a small VM in **AWS** (EC2 `t3.small`, about US$15/month) or **GCP** (Always Free `e2-micro`), and moves between them with one command. You need Linux (WSL on Windows) with [mise](https://mise.jdx.dev) and Docker, and a Discord server you manage.
 
-### 1. Install Hermes and this repo
+### 1. Tools and a VM
 
 ```sh
-curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash   # Windows: iex (irm https://hermes-agent.nousresearch.com/install.ps1)
 git clone https://github.com/natansalvadorligabo/hermes-discord-ai-agent
 cd hermes-discord-ai-agent
-uv tool install --editable .     # puts `discord-agent` on your PATH
+mise install                                      # uv, just, Terraform, AWS CLI at pinned versions
+aws configure                                     # GCP: gcloud auth application-default login
+ssh-keygen -t ed25519 -N "" -f ~/.ssh/hermes-vm   # the key the VMs trust
+just up aws                                       # create the VM; GCP: set project in infra/gcp/terraform.tfvars
 ```
+
+SSH to the VM is open only to the IP you applied from; run `just up` again when yours changes.
 
 ### 2. Create the Discord bot
 
@@ -46,9 +51,19 @@ uv tool install --editable .     # puts `discord-agent` on your PATH
 2. Invite it with the recommended permissions: `https://discord.com/oauth2/authorize?client_id=<APP_ID>&scope=bot+applications.commands&permissions=309237763136`
 3. Create the Radar channel (e.g. `#radar`) and copy its ID (Developer Mode, right-click, Copy Channel ID).
 
-Add to the Hermes `.env` (`~/.hermes/.env`, or `%LOCALAPPDATA%\hermes\.env` on Windows):
+### 3. Configure Hermes on the VM
+
+Start the agent once so Hermes creates its files, then open a shell on the VM:
 
 ```sh
+just deploy aws
+just ssh aws
+```
+
+Add to `/srv/hermes/.env`:
+
+```sh
+ANTHROPIC_API_KEY=...                   # or another provider Hermes supports
 DISCORD_BOT_TOKEN=...
 DISCORD_ALLOWED_USERS=<your Discord user ID>
 DISCORD_HOME_CHANNEL=<Radar channel ID>
@@ -59,16 +74,14 @@ RADAR_CHANNEL_ID=<Radar channel ID>
 RADAR_READER_ID=<your Discord user ID>      # only your reactions count
 ```
 
-### 3. Point Hermes at the skills
-
-In the Hermes `config.yaml`:
+And to `/srv/hermes/config.yaml`:
 
 ```yaml
-timezone: America/New_York            # yours
+timezone: America/Sao_Paulo           # yours
 
 skills:
   external_dirs:
-    - /path/to/hermes-discord-ai-agent/skills
+    - /opt/hermes-discord-ai-agent/skills   # where the image keeps them
 
 terminal:
   env_passthrough:                    # lets `discord-agent` post and read reactions
@@ -84,7 +97,7 @@ discord:
       use the radar-feedback skill.
 ```
 
-Start the gateway: `hermes gateway install` (or `hermes gateway` in the foreground).
+Then restart it from your machine: `just deploy aws`.
 
 ### 4. Get interviewed
 
@@ -96,9 +109,24 @@ To schedule it by hand instead: `discord-agent jobs command daily-radar --schedu
 
 - **React** 👍 or 👎 on a Pick. Before each Radar, the agent reads your reactions from the last two weeks (only yours count) and writes the patterns it sees under `## Learned from feedback` in your profile.
 - **Reply** in the Radar channel (_"more like #3"_, _"skip funding rounds"_). Words weigh more than reactions.
-- **Edit** `~/.discord-agent/reader-profile.md` or `sources.yaml` yourself at any time; they are plain files.
+- **Edit** `/srv/hermes/discord-agent/reader-profile.md` or `sources.yaml` on the VM at any time; they are plain files.
 
 ## Commands
+
+From your machine, in the repo:
+
+| Command | What it does |
+| --- | --- |
+| `just up <cloud>` | Create the VM on `aws` or `gcp` and wait for Docker |
+| `just deploy <cloud>` | Copy `compose.yaml` and `prompts/`, pull the latest image, (re)start the agent |
+| `just move <from> <to>` | Stop the agent on one VM and start it, with all its data, on the other |
+| `just switch <from> <to>` | `up <to>`, `move <from> <to>`, `down <from>` |
+| `just down <cloud>` | Save the VM's data to `infra/.state-backups`, then destroy the VM |
+| `just logs <cloud>` / `just ssh <cloud>` | Follow the agent's logs / a shell on the VM |
+
+Only one VM should run the agent at a time, or the Radar posts twice. Why one Terraform root per cloud instead of a single toggle: [ADR 0002](docs/adr/0002-one-terraform-root-per-cloud.md).
+
+Inside the container (`just ssh aws sudo docker exec hermes discord-agent ...`):
 
 | Command | What it does |
 | --- | --- |
@@ -111,12 +139,16 @@ To schedule it by hand instead: `discord-agent jobs command daily-radar --schedu
 
 ## Develop
 
+On Linux (WSL on Windows): the VMs and CI are Linux too.
+
 ```sh
+mise install
 uv sync
-sh scripts/check.sh   # ruff format, ruff check, mypy --strict, pytest
+just check    # ruff, mypy --strict, pytest, terraform fmt and validate
+just build    # the image, as CI builds it
 ```
 
-Contributor and agent notes are in [AGENTS.md](AGENTS.md).
+In WSL, on a checkout under `/mnt/c`, set `UV_PROJECT_ENVIRONMENT=~/.venvs/hermes-discord-ai-agent` so the Linux venv does not replace the Windows `.venv`. Contributor and agent notes are in [AGENTS.md](AGENTS.md).
 
 ## License
 
